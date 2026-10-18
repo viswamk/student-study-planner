@@ -1,0 +1,170 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Student Study Planner</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f6fc;color:#202944;font-family:Arial,sans-serif}
+.app{max-width:480px;margin:auto;padding:22px 18px}
+header,.heading{display:flex;justify-content:space-between;align-items:center;gap:10px}
+h1{font-size:25px}
+.eyebrow{color:#64749a;font-size:11px;letter-spacing:1px}
+.avatar{background:#5268e8;color:white;padding:15px;border-radius:50%}
+.welcome{background:#5268e8;color:white;padding:23px;border-radius:22px;margin:22px 0}
+.welcome h2{font-size:24px}
+.welcome p{line-height:1.5}
+h2.section{font-size:19px;margin-top:24px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card,.task{background:white;border-radius:16px;padding:16px}
+.card h2{margin:10px 0}
+button{border:0;border-radius:10px;padding:12px;background:#5268e8;color:white;font-weight:bold}
+input{padding:12px;border:1px solid #ccd3e5;border-radius:9px;font-size:16px;max-width:100%}
+form{display:grid;gap:10px;background:white;padding:14px;border-radius:14px;margin:12px 0}
+.tasks{display:grid;gap:10px;margin-top:12px}
+.task{display:flex;align-items:center;gap:10px}
+.task input[type=checkbox]{width:20px;height:20px}
+.task-info{flex:1;overflow-wrap:anywhere}
+.task-info p{margin:5px 0;color:#5268e8;font-size:13px}
+.done{text-decoration:line-through;color:#8992a8}
+.delete{background:#fff0f0;color:#b33}
+.focus{margin-top:22px;background:#e5eaff;padding:18px;border-radius:16px}
+#timer{font-size:30px;font-weight:bold;margin:10px 0}
+footer{text-align:center;color:#78819a;font-size:12px;padding:25px 0}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div><p class="eyebrow">YOUR PERSONAL SPACE</p>
+  <h1>Study Planner 📚</h1></div>
+  <div class="avatar">S</div>
+</header>
+
+<section class="welcome">
+  <p id="date"></p>
+  <h2>Let's make today count!</h2>
+  <p>Small steps lead to big results.</p>
+</section>
+
+<h2 class="section">Your overview</h2>
+<section class="stats">
+  <div class="card">📖<h2 id="hours">0 min</h2>
+    <p>Focus time today</p></div>
+  <div class="card">✅<h2 id="count">0/0</h2>
+    <p>Tasks completed</p></div>
+</section>
+
+<div class="heading">
+  <h2 class="section">Today's tasks</h2>
+  <button id="add">+ Add</button>
+</div>
+
+<form id="form" hidden>
+  <input id="name" placeholder="Subject or task name" required maxlength="80">
+  <input id="time" type="time" required>
+  <button type="submit">Save task</button>
+</form>
+<div id="tasks" class="tasks"></div>
+
+<section class="focus">
+  <h3>🎯 Focus timer</h3>
+  <p>Try a 25-minute study session.</p>
+  <div id="timer">25:00</div>
+  <button id="start">Start</button>
+  <button id="reset">Reset</button>
+</section>
+<footer>Keep learning. Keep growing. 💙</footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const today = new Date().toLocaleDateString("en-IN",{
+  weekday:"long",day:"numeric",month:"long"
+});
+$("date").textContent = today;
+
+const key = "study-planner-tasks";
+let tasks = [];
+try { tasks = JSON.parse(localStorage.getItem(key) || "[]"); }
+catch { tasks = []; }
+
+function save(){
+  try { localStorage.setItem(key,JSON.stringify(tasks)); }
+  catch { /* Storage may be unavailable in some previews. */ }
+}
+
+function render(){
+  $("tasks").replaceChildren();
+  tasks.forEach((t,i)=>{
+    const row=document.createElement("div");
+    row.className="task";
+    const check=document.createElement("input");
+    check.type="checkbox";
+    check.checked=t.done;
+    check.setAttribute("aria-label","Complete "+t.name);
+    check.addEventListener("change",()=>{
+      tasks[i].done=check.checked;save();render();
+    });
+    const info=document.createElement("div");
+    info.className="task-info";
+    const title=document.createElement("strong");
+    title.textContent=t.name;
+    if(t.done)title.className="done";
+    const time=document.createElement("p");
+    time.textContent=t.time;
+    info.append(title,time);
+    const del=document.createElement("button");
+    del.textContent="Delete";del.className="delete";
+    del.addEventListener("click",()=>{
+      tasks.splice(i,1);save();render();
+    });
+    row.append(check,info,del);
+    $("tasks").append(row);
+  });
+  $("count").textContent=tasks.filter(t=>t.done).length+"/"+tasks.length;
+}
+$("add").onclick=()=>{
+  $("form").hidden=!$("form").hidden;
+};
+$("form").onsubmit=e=>{
+  e.preventDefault();
+  tasks.push({name:$("name").value.trim(),time:$("time").value,done:false});
+  save();render();e.target.reset();e.target.hidden=true;
+};
+render();
+
+let seconds=25*60,interval=null,minutesStudied=0;
+function displayTimer(){
+  $("timer").textContent=
+    String(Math.floor(seconds/60)).padStart(2,"0")+":"+
+    String(seconds%60).padStart(2,"0");
+  $("hours").textContent=minutesStudied+" min";
+}
+$("start").onclick=()=>{
+  if(interval){
+    clearInterval(interval);interval=null;$("start").textContent="Resume";return;
+  }
+  $("start").textContent="Pause";
+  interval=setInterval(()=>{
+    seconds--;
+    if(seconds%60===0)minutesStudied++;
+    if(seconds<=0){
+      clearInterval(interval);interval=null;seconds=0;
+      $("start").textContent="Start again";
+      alert("Focus session complete! Take a short break.");
+    }
+    displayTimer();
+  },1000);
+};
+$("reset").onclick=()=>{
+  clearInterval(interval);interval=null;seconds=25*60;
+  $("start").textContent="Start";displayTimer();
+};
+displayTimer();
+</script>
+</body>
+</html>
+
